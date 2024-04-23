@@ -1,6 +1,6 @@
 # DeepSDF_and_PointCleanNet
 
-TODO: write description
+This project constitutes Coursework 3 within the curriculum of COMP0119 - Acquisition and Processing of 3D Geometry. We have developed the simple version of [DeepSDF](https://arxiv.org/abs/1901.05103) that is trained on single shapes and have further expanded upon this by integrating [PointCleanNet](https://geometry.cs.ucl.ac.uk/projects/2019/pointcleannet/) into our methodology for mesh reconstruction. Comprehensive details can be found in the submitted reports.
 
 ## Installation
 
