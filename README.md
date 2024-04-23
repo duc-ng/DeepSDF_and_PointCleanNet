@@ -74,4 +74,5 @@ Each of these directories builds upon the previous step. We also have additional
 
 ## Contributing
 [Duc Thinh Nguyen](https://github.com/duc-ng)
+
 [Harshitha Nagarajan ](https://github.com/HarshithaNagarajan)
