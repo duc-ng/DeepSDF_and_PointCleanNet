@@ -12,6 +12,12 @@ conda activate deepsdf
 pip install torch torchvision torchaudio open3d trimesh rtree scikit-image
 ```
 
+Then download models:
+
+``` bash
+cd pointcleannet/models && python download_models.py --task denoising && python download_models.py --task outliers_removal && cd ../..
+```
+
 ## Usage
 
 Start with preprocessing your `.obj` data files by running:
