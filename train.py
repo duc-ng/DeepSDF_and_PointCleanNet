@@ -38,7 +38,7 @@ def parse_args():
     parser.add_argument(
         "--epochs", type=int, default=200, help="number of epochs to train"
     )
-    parser.add_argument("--delta", type=float, default=0.1, help="delta for clamping")
+    parser.add_argument("--delta", type=float, default=0.1, help="delta for clamping loss function")
     parser.add_argument("--N", type=int, default=128, help="meshgrid size")
     parser.add_argument(
         "--clean",
@@ -120,7 +120,7 @@ def save_reconstructions(model, batch_size, name, device, N, output_dir):
     Reconstruct the SDF values for a meshgrid and save the mesh as .obj file.
     """
     # create meshgrid
-    coords = np.linspace(-1.1, 1.1, N)
+    coords = np.linspace(-1.3, 1.3, N)
     X, Y, Z = np.meshgrid(coords, coords, coords)
     samples = np.vstack(
         (Y.flatten(), X.flatten(), Z.flatten()) # swap X,Y because of coordinate system
