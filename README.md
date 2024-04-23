@@ -28,8 +28,8 @@ python preprocess .py
 |------------------------|--------------------------------------------------|-----------------------|
 | `--input_dir`          | Directory containing the `.obj` files to process | `data`                |
 | `--output_dir`         | Directory where the output `.npz` files will be saved | `out/1_preprocessed` |
-| `--samples_on_surface` | Number of samples to take directly on the surface of the mesh | 15000               |
-| `--samples_in_bbox`    | Number of samples to take within the bounding box of the mesh | 15000               |
+| `--samples_on_surface` | Number of samples to take directly on the surface of the mesh | `15000`               |
+| `--samples_in_bbox`    | Number of samples to take within the bounding box of the mesh | `15000`               |
 
 
 
@@ -51,7 +51,7 @@ python train.py
 | `--N`           | Meshgrid size                                     | `128`                             |
 | `--clean`       | Clean the reconstruction with PointCleanNet       | `false`                           |
 | `--clean_nrun`  | Number of runs with PointCleanNet noise removal   | `2`                               |
-| `--load`        | Load model weights from file instead of training  | None                               |
+| `--load`        | Load model weights from file instead of training  | `None`                            |
 
 
 And visualize the results with `visualize.py`. Modifications inside the source file may be necessary.
@@ -66,7 +66,7 @@ The output of the processing pipeline is organized into several folders within t
 
 - `1_preprocessed`: Contains `.npz` files with samples and signed distance functions (SDFs) generated from `.obj` mesh files as well as the normalized and centered `.obj` meshes. These are the raw data used for further processing and training.
 
-- `2_reconstructed`: Holds the mesh files that have been reconstructed from the SDF samples as 
+- `2_reconstructed`: Holds the mesh files that have been reconstructed from the SDF samples. 
 
 - `3_cleaned_outliers`: Contains processed mesh files where outliers have been removed with PointCleanNet.
 
