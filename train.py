@@ -39,7 +39,7 @@ def parse_args():
         "--epochs", type=int, default=200, help="number of epochs to train"
     )
     parser.add_argument("--delta", type=float, default=0.1, help="delta for clamping loss function")
-    parser.add_argument("--N", type=int, default=128, help="meshgrid size")
+    parser.add_argument("--N", type=int, default=256, help="meshgrid size")
     parser.add_argument(
         "--clean",
         action="store_true",
@@ -194,7 +194,7 @@ if __name__ == "__main__":
         os.makedirs(args.output_dir, exist_ok=True)
         torch.save(model.state_dict(), os.path.join(args.output_dir, f"{basename}.pth"))    
     
-    # save reconstructed coordinates as .obj and .xyz
+    # save reconstructed coordinates 
     save_reconstructions(
         model.eval(),
         args.batch_size*10,
