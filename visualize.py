@@ -71,8 +71,7 @@ if __name__ == "__main__":
         [
             "out/1_preprocessed/bunny.obj",
             "out/2_reconstructed/bunny.obj",
-            "out/3_cleaned_outliers/bunny.obj",
-            "out/4_cleaned_noise/bunny_1.obj",
+            # "out/3_cleaned_outliers/bunny.obj",
             # "out/4_cleaned_noise/bunny_2.obj",
         ]
     )

@@ -15,7 +15,7 @@ def parse_args():
     """
     Parse input arguments.
     """
-    parser = argparse.ArgumentParser(description="Simple Example")
+    parser = argparse.ArgumentParser(description="DeepSDF and PointCleanNet")
     parser.add_argument(
         "--input_file",
         type=str,
@@ -34,12 +34,12 @@ def parse_args():
         help="input batch size for training and reconstruction",
     )
     parser.add_argument("--num-workers", type=int, default=8, help="number of workers")
-    parser.add_argument("--lr", type=float, default=0.0001, help="learning rate")
+    parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
     parser.add_argument(
-        "--epochs", type=int, default=100, help="number of epochs to train"
+        "--epochs", type=int, default=200, help="number of epochs to train"
     )
     parser.add_argument("--delta", type=float, default=0.1, help="delta for clamping")
-    parser.add_argument("--N", type=int, default=32, help="meshgrid size")
+    parser.add_argument("--N", type=int, default=128, help="meshgrid size")
     parser.add_argument(
         "--clean",
         action="store_true",
@@ -115,12 +115,12 @@ def save_plot_losses(losses):
     plt.savefig(f"{out_dir}/loss_{len(os.listdir(out_dir))}.png")
 
 
-def save_reconstructions(model, batch_size, delta, name, device, N, output_dir):
+def save_reconstructions(model, batch_size, name, device, N, output_dir):
     """
     Reconstruct the SDF values for a meshgrid and save the mesh as .obj file.
     """
     # create meshgrid
-    coords = np.linspace(-1.5, 1.5, N)
+    coords = np.linspace(-1.1, 1.1, N)
     X, Y, Z = np.meshgrid(coords, coords, coords)
     samples = np.vstack(
         (Y.flatten(), X.flatten(), Z.flatten()) # swap X,Y because of coordinate system
@@ -134,7 +134,7 @@ def save_reconstructions(model, batch_size, delta, name, device, N, output_dir):
         with torch.no_grad():
             pred = model(batch)
             preds[i : (i + batch_size)] = pred.squeeze()
-        print(f"Reconstructing mesh: {i}/{len(samples)} vertices", end="\r")
+        print(f"Reconstructing mesh: {i}/{len(samples)} points", end="\r")
     
     # marching cubes
     preds = preds.view(N, N, N).cpu().numpy()  # reshape to (N, N, N)
@@ -197,8 +197,7 @@ if __name__ == "__main__":
     # save reconstructed coordinates as .obj and .xyz
     save_reconstructions(
         model.eval(),
-        args.batch_size,
-        args.delta,
+        args.batch_size*10,
         basename,
         device,
         args.N,

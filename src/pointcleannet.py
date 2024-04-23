@@ -132,7 +132,7 @@ if __name__ == "__main__":
     ]
     subprocess.run(command, cwd=directory_path)
 
-    # 3. remove outliers and save as .obj and .xyz
+    # 3. remove outliers and save 
     remove_outliers_from_info_file(config.outlier_dir, config.input_dir)
 
     # 4. save file names in testset.txt
@@ -164,6 +164,6 @@ if __name__ == "__main__":
             ]
             subprocess.run(command2, cwd=directory_path2)
     
-    # 6. save cleaned noise as .obj
+    # 6. save cleaned noise
     remove_noise(config.output_dir, config.outlier_dir, config.nrun)
 
