@@ -45,8 +45,7 @@ def plot_confusion_matrix(train_loader, model):
     print("Confusion matrix saved in out/confusion_matrix/confusion_matrix.png")
     
 
-############################################################################################################
-# init
+########################################## init ############################################################
 nr_samples = 30000
 nr_runs = 2
 nr_epochs = 200
