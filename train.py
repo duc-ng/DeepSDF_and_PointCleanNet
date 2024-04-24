@@ -7,8 +7,6 @@ from src.AutoDecoder import AutoDecoder
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import os
-import skimage.measure as measure
-import subprocess
 
 
 def parse_args():
@@ -17,21 +15,12 @@ def parse_args():
     """
     parser = argparse.ArgumentParser(description="DeepSDF and PointCleanNet")
     parser.add_argument(
-        "--input_file",
-        type=str,
-        default="out/1_preprocessed/bunny.npz",
-        help="file to train on",
-    )
-    parser.add_argument(
-        "--output_dir", type=str, default="out/2_reconstructed", help="output directory"
+        "--weights_dir", type=str, default="out/weights", help="weights directory"
     )
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--device", type=str, default="cpu", help="device to train on")
     parser.add_argument(
-        "--batch-size",
-        type=int,
-        default=6400,
-        help="input batch size for training and reconstruction",
+        "--batch-size", type=int, default=6400, help="batch size for training"
     )
     parser.add_argument("--num-workers", type=int, default=8, help="number of workers")
     parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
@@ -41,24 +30,8 @@ def parse_args():
     parser.add_argument(
         "--delta", type=float, default=0.1, help="delta for clamping loss function"
     )
-    parser.add_argument("--N", type=int, default=256, help="meshgrid size")
-    parser.add_argument(
-        "--clean",
-        action="store_true",
-        help="clean the reconstruction with PointCleanNet",
-    )
-    parser.add_argument(
-        "--clean_nrun",
-        type=int,
-        default=2,
-        help="Number of runs with PointCleanNet noise removal",
-    )
-    parser.add_argument(
-        "--load",
-        type=str,
-        default=None,
-        help="load model from file instead of training",
-    )
+    parser.add_argument("--latent_size", type=int, default=256, help="latent size")
+    parser.add_argument("--latent_std", type=float, default=0.01, help="latent std")
     return parser.parse_args()
 
 
@@ -70,8 +43,8 @@ def train(
     device,
     epochs,
     delta,
-    output_dir,
-    basename,
+    weights_dir,
+    latent,
 ):
     """
     Train loop for the model.
@@ -80,22 +53,27 @@ def train(
     epoch_losses = []
     for epoch in range(epochs):
         losses = []
+        
         with tqdm(train_loader, unit="batch") as tepoch:
-            for data in tepoch:
+            for data, indices in tepoch:
 
                 # get inputs and targets
                 tepoch.set_description(f"Epoch {epoch+1}/{epochs}")
-                inputs = data[:, 0:3]  # coordinates
-                targets = data[:, 3].unsqueeze(1)  # sdf values
-
+                inputs = data[:,:, 0:3]  # coordinates                
+                targets = data[:,:, 3].unsqueeze(1)  # sdf values
+                
                 # move data to device
-                inputs = inputs.to(device)
+                inputs = inputs.to(device) 
                 targets = targets.to(device)
+                latent_vector = latent(indices).to(device) 
 
-                # zero gradients
-                optimizer.zero_grad()
+                # add latent vector to input coords  and reshape
+                inputs = torch.cat((inputs, latent_vector.unsqueeze(1).repeat(1, inputs.shape[1], 1)), dim=2)
+                inputs = inputs.view(-1, inputs.shape[2])
+                targets = targets.view(-1, 1)
 
                 # predict
+                optimizer.zero_grad()
                 outputs = model(inputs)
 
                 # Compute loss
@@ -114,7 +92,8 @@ def train(
         # save model every 50 epochs
         if (epoch + 1) % 50 == 0:
             torch.save(
-                model.state_dict(), os.path.join(output_dir, f"{basename}_{epoch+1}.pth")
+                model.state_dict(),
+                os.path.join(weights_dir, f"model_{epoch+1}.pth"),
             )
 
     return epoch_losses
@@ -138,64 +117,19 @@ def save_plot_losses(losses):
     plt.savefig(f"{out_dir}/loss_{len(os.listdir(out_dir))}.png")
 
 
-def save_reconstructions(model, batch_size, name, device, N, output_dir):
-    """
-    Reconstruct the SDF values for a meshgrid and save the mesh as .obj file.
-    """
-    # create meshgrid
-    coords = np.linspace(-1.3, 1.3, N)
-    X, Y, Z = np.meshgrid(coords, coords, coords)
-    samples = np.vstack(
-        (Y.flatten(), X.flatten(), Z.flatten())  # swap X,Y because of coordinate system
-    ).T  # reshape to (N^3, 3)
-    samples = torch.from_numpy(samples).float().to(device)
-
-    # predict
-    preds = torch.zeros(N**3)
-    for i in range(0, len(samples), batch_size):
-        batch = samples[i : (i + batch_size)]
-        with torch.no_grad():
-            pred = model(batch)
-            preds[i : (i + batch_size)] = pred.squeeze()
-        print(f"Reconstructing mesh: {i}/{len(samples)} points", end="\r")
-
-    # marching cubes
-    preds = preds.view(N, N, N).cpu().numpy()  # reshape to (N, N, N)
-    verts, faces, _, _ = measure.marching_cubes(preds, 0)
-
-    # scale back to samples space
-    grid_min = np.min(samples.cpu().numpy(), axis=0)
-    grid_max = np.max(samples.cpu().numpy(), axis=0)
-    grid_scale = grid_max - grid_min
-    verts = verts * grid_scale / (N - 1) + grid_min
-
-    # save as .obj and .xyz
-    out_file_obj = os.path.join(output_dir, f"{name}.obj")
-    out_file_xyz = os.path.join(output_dir, f"{name}.xyz")
-    with open(out_file_obj, "w") as f:
-        for v in verts:
-            f.write(f"v {v[0]} {v[1]} {v[2]}\n")
-        for face in faces:
-            f.write(f"f {face[0]+1} {face[1]+1} {face[2]+1}\n")
-    with open(out_file_xyz, "w") as f:
-        for v in verts:
-            f.write(f"{v[0]} {v[1]} {v[2]}\n")
-    print(f"Reconstructed mesh saved in: {out_file_obj} and {name}.xyz")
-
-
 if __name__ == "__main__":
     # init
     args = parse_args()
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
-    os.makedirs(args.output_dir, exist_ok=True)
+    os.makedirs(args.weights_dir, exist_ok=True)
 
     # set device
     device = torch.device(args.device)
     print(f"Using device: {device}")
 
     # load data
-    train_dataset = DeepSDF_Dataset(args.input_file)
+    train_dataset = DeepSDF_Dataset()
     train_loader = DataLoader(
         train_dataset,
         batch_size=args.batch_size,
@@ -203,46 +137,29 @@ if __name__ == "__main__":
         num_workers=args.num_workers,
     )
 
-    # train model
-    model = AutoDecoder().float().train().to(device)
+    # init latent vector for training
+    latent = torch.nn.Embedding(len(train_dataset), args.latent_size, max_norm=1.0)
+    torch.nn.init.normal_(latent.weight.data, mean=0.0, std=args.latent_std)
+
+    # init model and optimizer
+    model = AutoDecoder(args.latent_size).float().train().to(device)
     criterion = torch.nn.L1Loss(reduction="mean")
-    optimizer = torch.optim.Adam(params=model.parameters(), lr=args.lr)
-    basename = os.path.basename(args.input_file).split(".")[0]
-
-    if args.load:
-        model.load_state_dict(torch.load(args.load))
-    else:
-        epoch_losses = train(
-            train_loader, model, criterion, optimizer, device, args.epochs, args.delta, args.output_dir, basename
-        )
-        save_plot_losses(epoch_losses)
-
-    # save reconstructed coordinates
-    save_reconstructions(
-        model.eval(),
-        args.batch_size * 10,
-        basename,
-        device,
-        args.N,
-        args.output_dir,
+    optimizer = torch.optim.Adam(
+        [{"params": model.parameters()}, {"params": latent.parameters()}], lr=args.lr
     )
 
-    # PointCleanNet
-    if args.clean:
-        command = [
-            "python",
-            "src/pointcleannet.py",
-            "--input_dir",
-            args.output_dir,
-            "--outlier_dir",
-            "out/3_cleaned_outliers",
-            "--output_dir",
-            "out/4_cleaned_noise",
-            "--device",
-            str(device),
-            "--seed",
-            str(args.seed),
-            "--nrun",
-            str(args.clean_nrun),
-        ]
-        subprocess.run(command)
+    # train model
+    epoch_losses = train(
+        train_loader,
+        model,
+        criterion,
+        optimizer,
+        device,
+        args.epochs,
+        args.delta,
+        args.weights_dir,
+        latent,
+    )
+
+    # save losses
+    save_plot_losses(epoch_losses)

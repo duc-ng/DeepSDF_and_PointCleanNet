@@ -7,12 +7,13 @@ class AutoDecoder(nn.Module):
   """
   AutoDecoder network for DeepSDF.
   """
-  def __init__(self, num_layers=8, p=0.1):
+  def __init__(self, latent_size, p=0.1):
     super(AutoDecoder, self).__init__()
-    self.fc1 = weight_norm(nn.Linear(3, 512))
+    self.size = 3+latent_size
+    self.fc1 = weight_norm(nn.Linear(self.size, 512))
     self.fc2 = weight_norm(nn.Linear(512, 512))
     self.fc3 = weight_norm(nn.Linear(512, 512))
-    self.fc4 = weight_norm(nn.Linear(512, 509))
+    self.fc4 = weight_norm(nn.Linear(512, 512-self.size))
     self.fc5 = weight_norm(nn.Linear(512, 512))
     self.fc6 = weight_norm(nn.Linear(512, 512))
     self.fc7 = weight_norm(nn.Linear(512, 512))

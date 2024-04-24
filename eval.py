@@ -33,7 +33,7 @@ def plot_confusion_matrix(train_loader, model):
         target = np.sign(target)
         output = [0 if abs(x) < 0.001 else np.sign(x) for x in output]
 
-        # append
+        # concat
         y = y + list(target)
         y_pred = y_pred + list(output)
         
