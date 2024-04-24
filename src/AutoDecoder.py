@@ -3,12 +3,12 @@ from torch.nn.utils.parametrizations import weight_norm
 import torch.nn as nn
 import torch
 
-class Decoder(nn.Module):
+class AutoDecoder(nn.Module):
   """
-  Decoder network for DeepSDF.
+  AutoDecoder network for DeepSDF.
   """
   def __init__(self, num_layers=8, p=0.1):
-    super(Decoder, self).__init__()
+    super(AutoDecoder, self).__init__()
     self.fc1 = weight_norm(nn.Linear(3, 512))
     self.fc2 = weight_norm(nn.Linear(512, 512))
     self.fc3 = weight_norm(nn.Linear(512, 512))
@@ -20,7 +20,7 @@ class Decoder(nn.Module):
     self.relu = nn.ReLU()
     self.dropout = nn.Dropout(p)
     self.tanh = nn.Tanh()
-    print("Decoder initialized")
+    print("AutoDecoder initialized")
 
   def forward(self, xyz_latent):
     x = self.dropout(self.relu(self.fc1(xyz_latent)))

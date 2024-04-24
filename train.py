@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import DataLoader
 import numpy as np
 from src.dataset import DeepSDF_Dataset
-from src.Decoder import Decoder
+from src.AutoDecoder import AutoDecoder
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import os
@@ -36,9 +36,11 @@ def parse_args():
     parser.add_argument("--num-workers", type=int, default=8, help="number of workers")
     parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
     parser.add_argument(
-        "--epochs", type=int, default=200, help="number of epochs to train"
+        "--epochs", type=int, default=300, help="number of epochs to train"
     )
-    parser.add_argument("--delta", type=float, default=0.1, help="delta for clamping loss function")
+    parser.add_argument(
+        "--delta", type=float, default=0.1, help="delta for clamping loss function"
+    )
     parser.add_argument("--N", type=int, default=256, help="meshgrid size")
     parser.add_argument(
         "--clean",
@@ -51,11 +53,26 @@ def parse_args():
         default=2,
         help="Number of runs with PointCleanNet noise removal",
     )
-    parser.add_argument("--load", type=str, default=None, help="load model from file instead of training")
+    parser.add_argument(
+        "--load",
+        type=str,
+        default=None,
+        help="load model from file instead of training",
+    )
     return parser.parse_args()
 
 
-def train(train_loader, model, criterion, optimizer, device, epochs, delta):
+def train(
+    train_loader,
+    model,
+    criterion,
+    optimizer,
+    device,
+    epochs,
+    delta,
+    output_dir,
+    basename,
+):
     """
     Train loop for the model.
     """
@@ -94,6 +111,12 @@ def train(train_loader, model, criterion, optimizer, device, epochs, delta):
 
         epoch_losses.append(np.mean(losses))
 
+        # save model every 50 epochs
+        if (epoch + 1) % 50 == 0:
+            torch.save(
+                model.state_dict(), os.path.join(output_dir, f"{basename}_{epoch+1}.pth")
+            )
+
     return epoch_losses
 
 
@@ -123,8 +146,8 @@ def save_reconstructions(model, batch_size, name, device, N, output_dir):
     coords = np.linspace(-1.3, 1.3, N)
     X, Y, Z = np.meshgrid(coords, coords, coords)
     samples = np.vstack(
-        (Y.flatten(), X.flatten(), Z.flatten()) # swap X,Y because of coordinate system
-    ).T  # reshape to (N^3, 3) 
+        (Y.flatten(), X.flatten(), Z.flatten())  # swap X,Y because of coordinate system
+    ).T  # reshape to (N^3, 3)
     samples = torch.from_numpy(samples).float().to(device)
 
     # predict
@@ -135,11 +158,11 @@ def save_reconstructions(model, batch_size, name, device, N, output_dir):
             pred = model(batch)
             preds[i : (i + batch_size)] = pred.squeeze()
         print(f"Reconstructing mesh: {i}/{len(samples)} points", end="\r")
-    
+
     # marching cubes
     preds = preds.view(N, N, N).cpu().numpy()  # reshape to (N, N, N)
     verts, faces, _, _ = measure.marching_cubes(preds, 0)
-    
+
     # scale back to samples space
     grid_min = np.min(samples.cpu().numpy(), axis=0)
     grid_max = np.max(samples.cpu().numpy(), axis=0)
@@ -159,11 +182,13 @@ def save_reconstructions(model, batch_size, name, device, N, output_dir):
             f.write(f"{v[0]} {v[1]} {v[2]}\n")
     print(f"Reconstructed mesh saved in: {out_file_obj} and {name}.xyz")
 
+
 if __name__ == "__main__":
     # init
     args = parse_args()
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
+    os.makedirs(args.output_dir, exist_ok=True)
 
     # set device
     device = torch.device(args.device)
@@ -179,32 +204,30 @@ if __name__ == "__main__":
     )
 
     # train model
-    model = Decoder().float().train().to(device)
+    model = AutoDecoder().float().train().to(device)
     criterion = torch.nn.L1Loss(reduction="mean")
     optimizer = torch.optim.Adam(params=model.parameters(), lr=args.lr)
     basename = os.path.basename(args.input_file).split(".")[0]
-    
+
     if args.load:
         model.load_state_dict(torch.load(args.load))
     else:
         epoch_losses = train(
-            train_loader, model, criterion, optimizer, device, args.epochs, args.delta
+            train_loader, model, criterion, optimizer, device, args.epochs, args.delta, args.output_dir, basename
         )
         save_plot_losses(epoch_losses)
-        os.makedirs(args.output_dir, exist_ok=True)
-        torch.save(model.state_dict(), os.path.join(args.output_dir, f"{basename}.pth"))    
-    
-    # save reconstructed coordinates 
+
+    # save reconstructed coordinates
     save_reconstructions(
         model.eval(),
-        args.batch_size*10,
+        args.batch_size * 10,
         basename,
         device,
         args.N,
         args.output_dir,
     )
 
-    # PointCleanNet 
+    # PointCleanNet
     if args.clean:
         command = [
             "python",
