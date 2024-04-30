@@ -141,25 +141,25 @@ if __name__ == "__main__":
     print("Mean Chamfer Distance (original and reconstructed):", np.mean(distances))
 
     # init model and dataset
-    # model = AutoDecoder(latent_size).float().eval().to(device)
-    # model.load_state_dict(torch.load(weights, map_location=device))
-    # latent = torch.load(latent_file, map_location=device).weight
-    # train_dataset = DeepSDF_Dataset(nr_rand_samples)
-    # train_loader = DataLoader(
-    #     train_dataset,
-    #     batch_size=batch_size,
-    #     shuffle=True,
-    #     num_workers=1,
-    # )
+    model = AutoDecoder(latent_size).float().eval().to(device)
+    model.load_state_dict(torch.load(weights, map_location=device))
+    latent = torch.load(latent_file, map_location=device).weight
+    train_dataset = DeepSDF_Dataset(nr_rand_samples)
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=1,
+    )
 
     # plot confusion matrix
-    # plot_confusion_matrix(train_loader, model, latent)
+    plot_confusion_matrix(train_loader, model, latent)
     
     # plot iterations
-    # plot_iterations("report/iterations")
+    plot_iterations("report/iterations")
     
     # plot sdf
-    # plot_sdf("report/sdf")
+    plot_sdf("report/sdf")
         
 
     
