@@ -7,6 +7,7 @@ from src.AutoDecoder import AutoDecoder
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import os
+from glob import glob
 
 
 def parse_args():
@@ -20,31 +21,45 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--device", type=str, default="cpu", help="device to train on")
     parser.add_argument(
-        "--batch-size", type=int, default=6400, help="batch size for training"
+        "--batch-size", type=int, default=3, help="batch size for training"
     )
-    parser.add_argument("--num-workers", type=int, default=8, help="number of workers")
-    parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
+    parser.add_argument("--num-workers", type=int, default=4, help="number of workers")
+    parser.add_argument("--lr_model", type=float, default=0.0001, help="learning rate")
     parser.add_argument(
-        "--epochs", type=int, default=300, help="number of epochs to train"
+        "--lr_latent", type=float, default=0.001, help="learning rate for latent vector"
+    )
+    parser.add_argument(
+        "--epochs", type=int, default=150, help="number of epochs to train"
     )
     parser.add_argument(
         "--delta", type=float, default=0.1, help="delta for clamping loss function"
     )
-    parser.add_argument("--latent_size", type=int, default=256, help="latent size")
+    parser.add_argument("--latent_size", type=int, default=128, help="latent size")
     parser.add_argument("--latent_std", type=float, default=0.01, help="latent std")
+    parser.add_argument(
+        "--nr_rand_samples",
+        type=int,
+        default=10000,
+        help="Number of random subsamples from each batch",
+    )
+
+    assert parser.parse_args().batch_size <= len(
+        glob("out/1_preprocessed/*.npz")
+    ), "Batch size is larger than the number of files in the dataset"
+
     return parser.parse_args()
 
 
 def train(
     train_loader,
     model,
-    criterion,
     optimizer,
     device,
     epochs,
     delta,
     weights_dir,
     latent,
+    latent_std,
 ):
     """
     Train loop for the model.
@@ -53,22 +68,23 @@ def train(
     epoch_losses = []
     for epoch in range(epochs):
         losses = []
-        
+
         with tqdm(train_loader, unit="batch") as tepoch:
-            for data, indices in tepoch:
+            for x, y, indices in tepoch:
 
                 # get inputs and targets
                 tepoch.set_description(f"Epoch {epoch+1}/{epochs}")
-                inputs = data[:,:, 0:3]  # coordinates                
-                targets = data[:,:, 3].unsqueeze(1)  # sdf values
-                
-                # move data to device
-                inputs = inputs.to(device) 
-                targets = targets.to(device)
-                latent_vector = latent(indices).to(device) 
 
-                # add latent vector to input coords  and reshape
-                inputs = torch.cat((inputs, latent_vector.unsqueeze(1).repeat(1, inputs.shape[1], 1)), dim=2)
+                # move data to device
+                inputs = x.to(device)
+                targets = y.to(device)
+                latent_vector = latent(indices).to(device)
+
+                # add latent vector to input coords and reshape
+                inputs = torch.cat(
+                    (inputs, latent_vector.unsqueeze(1).repeat(1, inputs.shape[1], 1)),
+                    dim=2,
+                )
                 inputs = inputs.view(-1, inputs.shape[2])
                 targets = targets.view(-1, 1)
 
@@ -77,9 +93,7 @@ def train(
                 outputs = model(inputs)
 
                 # Compute loss
-                targets_clamp = torch.clamp(targets, -delta, delta)
-                out_clamp = torch.clamp(outputs, -delta, delta)
-                loss = criterion(out_clamp, targets_clamp)
+                loss = loss_function(outputs, targets, delta, latent_vector, latent_std)
                 losses.append(loss.item())
 
                 # backprop
@@ -96,7 +110,21 @@ def train(
                 os.path.join(weights_dir, f"model_{epoch+1}.pth"),
             )
 
+    # save latents
+    torch.save(latent, os.path.join(weights_dir, "latent.pt"))
+
     return epoch_losses
+
+
+def loss_function(y_pred, y_true, delta, latent, latent_std):
+    """
+    Loss function for multi-shape SDF prediction.
+    """
+    y_pred = torch.clamp(y_pred, -delta, delta)
+    y_true = torch.clamp(y_true, -delta, delta)
+    l1 = torch.mean(torch.abs(y_pred - y_true))
+    l2 = latent_std**2 * torch.mean(torch.linalg.norm(latent, dim=1, ord=2))
+    return l1 + l2
 
 
 def save_plot_losses(losses):
@@ -129,7 +157,7 @@ if __name__ == "__main__":
     print(f"Using device: {device}")
 
     # load data
-    train_dataset = DeepSDF_Dataset()
+    train_dataset = DeepSDF_Dataset(args.nr_rand_samples)
     train_loader = DataLoader(
         train_dataset,
         batch_size=args.batch_size,
@@ -137,28 +165,36 @@ if __name__ == "__main__":
         num_workers=args.num_workers,
     )
 
-    # init latent vector for training
-    latent = torch.nn.Embedding(len(train_dataset), args.latent_size, max_norm=1.0)
+    # init latent vector for each sdf
+    latent = torch.nn.Embedding(len(train_dataset), args.latent_size)
     torch.nn.init.normal_(latent.weight.data, mean=0.0, std=args.latent_std)
 
     # init model and optimizer
-    model = AutoDecoder(args.latent_size).float().train().to(device)
-    criterion = torch.nn.L1Loss(reduction="mean")
+    model = AutoDecoder(latent_size=args.latent_size).float().train().to(device)
     optimizer = torch.optim.Adam(
-        [{"params": model.parameters()}, {"params": latent.parameters()}], lr=args.lr
+        [
+            {
+                "params": model.parameters(),
+                "lr": args.lr_model * args.batch_size,
+            },
+            {
+                "params": latent.parameters(),
+                "lr": args.lr_latent,
+            },
+        ],
     )
 
     # train model
     epoch_losses = train(
         train_loader,
         model,
-        criterion,
         optimizer,
         device,
         args.epochs,
         args.delta,
         args.weights_dir,
         latent,
+        args.latent_std,
     )
 
     # save losses

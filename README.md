@@ -12,7 +12,7 @@ conda activate deepsdf
 pip install torch torchvision torchaudio open3d trimesh rtree scikit-image
 ```
 
-Then download models:
+Then download the weights of PointCleanNet:
 
 ``` bash
 cd pointcleannet/models && python download_models.py --task denoising && python download_models.py --task outliers_removal && cd ../..
@@ -28,8 +28,9 @@ python preprocess .py
 |------------------------|--------------------------------------------------|-----------------------|
 | `--input_dir`          | Directory containing the `.obj` files to process | `data`                |
 | `--output_dir`         | Directory where the output `.npz` files will be saved | `out/1_preprocessed` |
-| `--samples_on_surface` | Number of samples to take directly on the surface of the mesh | `15000`               |
-| `--samples_in_bbox`    | Number of samples to take within the bounding box of the mesh | `15000`               |
+| `--samples_on_surface` | Number of samples to take directly on the surface of the mesh | `10000`              |
+| `--samples_in_bbox`    | Number of samples to take within the bounding box of the mesh | `10000`              |
+| `--samples_in_cube`    | Number of samples to take within the unit cube | `2500`                  |
 
 
 
@@ -39,20 +40,41 @@ python train.py
 ```
 | Argument        | Description                                       | Default Value                     |
 |-----------------|---------------------------------------------------|-----------------------------------|
-| `--input_file`  | File to train on                                  | `out/1_preprocessed/bunny.npz`    |
-| `--output_dir`  | Output directory                                  | `out/2_reconstructed`           |
+| `--weights_dir` | Directory for saving model weights                      | `out/weights`    |
 | `--seed`        | Random seed                                       | `42`                              |
 | `--device`      | Device to train on                                | `cpu`                             |
-| `--batch-size`  | Input batch size for training                     | `12800`                           |
-| `--num-workers` | Number of workers                                 | `8`                               |
-| `--lr`          | Learning rate                                     | `0.0001`                           |
+| `--batch-size`  | Input batch size for training                     | `3`                           |
+| `--num-workers` | Number of workers                                 | `4`                               |
+| `--lr_model`    | Learning rate for model training                  | `0.0001`                           |
+| `--lr_latent`   | Learning rate for training latent vector          | `0.001`                           |
 | `--epochs`      | Number of epochs to train                         | `100`                             |
 | `--delta`       | Delta for clamping                                | `0.1`                             |
-| `--N`           | Meshgrid size                                     | `128`                             |
-| `--clean`       | Clean the reconstruction with PointCleanNet       | `false`                           |
-| `--clean_nrun`  | Number of runs with PointCleanNet noise removal   | `2`                               |
-| `--load`        | Load model weights from file instead of training  | `None`                            |
+| `--latent_size` | Size of latent vector                              | `128`                             |
+| `--latent_std`       | Sigma value for initializing latent vector    | `0.01`                           |
+| `--nr_rand_samples`  | Number of random subsamples from each batch   | `10000`                               |
 
+
+And reconstruct the meshes with the trained latent vectors:
+``` bash
+python predict.py
+```
+| Argument                | Description                                  | Default Value              |
+|-------------------------|----------------------------------------------|----------------------------|
+| `--input_dir`           | Input directory                              | `out/1_preprocessed`       |
+| `--output_dir`          | Output directory                             | `out/2_reconstructed`      |
+| `--weights_dir`         | Model weights directory                      | `out/weights`              |
+| `--seed`                | Random seed                                  | `42`                       |
+| `--device`              | Device to run on                             | `cpu`                      |
+| `--num-workers`         | Number of workers                            | `4`                        |
+| `--N`                   | Meshgrid size                                | `150`                      |
+| `--latent_size`         | Size of latent vector                        | `128`                      |
+| `--batch_size_reconstruct` | Batch size for reconstruction             | `100000`                   |
+
+
+Or complete a partial mesh by inferring the input latent vectors:
+``` bash
+python complete_shape.py
+```
 
 And visualize the results with `visualize.py`. Modifications inside the source file may be necessary.
 ``` bash

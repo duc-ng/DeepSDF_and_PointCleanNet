@@ -17,29 +17,27 @@ def parse_args():
     parser.add_argument(
         "--samples_on_surface",
         type=int,
-        default=15000,
+        default=10000,
         help="Number of samples on the surface",
     )
     parser.add_argument(
         "--samples_in_bbox",
         type=int,
-        default=15000,
+        default=10000,
         help="Number of samples in the bounding box",
+    )
+    parser.add_argument(
+        "--samples_in_cube",
+        type=int,
+        default=2500,
+        help="Number of samples in the cube",
     )
     return parser.parse_args()
 
 
-def save_samples(samples_and_sdfs: np.ndarray, out_file: str):
-    """
-    Save samples and SDFs to a .npz file.
-    """
-    sdfs = samples_and_sdfs[:, 3]
-    pos = samples_and_sdfs[sdfs > 0].reshape(-1, 4)
-    neg = samples_and_sdfs[sdfs <= 0].reshape(-1, 4)
-    np.savez(out_file, pos=pos, neg=neg)
 
 
-def generate_samples(mesh_file: str, samples_in_bbox: int, samples_on_surface: int):
+def generate_samples(mesh_file: str, samples_in_bbox: int, samples_on_surface: int, samples_in_cube: int):
     """
     Generate samples and signed distance functions (SDFs) for a mesh.
     """
@@ -47,8 +45,8 @@ def generate_samples(mesh_file: str, samples_in_bbox: int, samples_on_surface: i
     mesh = trimesh.load_mesh(mesh_file)
     assert mesh.vertices.shape[1] == 3, f"Vertices of {mesh_file} are not 3D"
 
-    # normalize to [-1, 1] and center
-    mesh.apply_scale(2 / np.max(mesh.extents))
+    # normalize to [-1, 1] with a margin of 3% and center mesh
+    mesh.apply_scale(2 / (np.max(mesh.extents)*1.03))
     mesh.apply_translation(-mesh.centroid)
     
     # save normalized mesh
@@ -57,17 +55,17 @@ def generate_samples(mesh_file: str, samples_in_bbox: int, samples_on_surface: i
     # generate samples
     v_min, v_max = mesh.vertices.min(0), mesh.vertices.max(0)
     samples_bbox = np.random.uniform(v_min, v_max, (samples_in_bbox, 3))
+    samples_cube = np.random.rand(samples_in_cube, 3) * 2 - 1
     samples_surface, _ = trimesh.sample.sample_surface(mesh, samples_on_surface)
+    samples = np.vstack((samples_bbox, samples_cube, samples_surface))  # (n,3)
 
-    # compute signed distance
-    sdf_points = mesh.nearest.signed_distance(samples_bbox)
+    # compute signed distance 
+    sdf_bbox = mesh.nearest.signed_distance(samples_bbox) * -1 
+    sdf_cube = mesh.nearest.signed_distance(samples_cube) * -1
     sdf_surface = np.zeros(samples_surface.shape[0])
+    sdf = np.hstack((sdf_bbox, sdf_cube, sdf_surface)) # (n,)
 
-    # stack values
-    sdfs = np.hstack((sdf_points, sdf_surface))  # (n,)
-    samples = np.vstack((samples_bbox, samples_surface))  # (n,3)
-    samples_and_sdfs = np.hstack((samples, sdfs.reshape(-1, 1)))  # (n,4)
-    return samples_and_sdfs
+    return samples, sdf
 
 
 if __name__ == "__main__":
@@ -86,12 +84,13 @@ if __name__ == "__main__":
 
         # generate samples
         print(f"{i+1}/{nr_files} Preprocessing", mesh_file)
-        samples_and_sdfs = generate_samples(
+        samples, sdf = generate_samples(
             mesh_file,
             args.samples_in_bbox,
             args.samples_on_surface,
+            args.samples_in_cube
         )
 
         # save samples and SDFs
         out_file = join(args.output_dir, basename(mesh_file).replace(".obj", ".npz"))
-        save_samples(samples_and_sdfs, out_file)
+        np.savez(out_file, samples=samples, sdf=sdf)
