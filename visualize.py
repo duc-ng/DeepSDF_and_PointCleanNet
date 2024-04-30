@@ -83,11 +83,19 @@ if __name__ == "__main__":
     checkpoints = [int(os.path.basename(f).split(".")[0]) for f in mesh_files]
     mesh_files = [
         f for _, f in sorted(zip(checkpoints, mesh_files))
-    ]  # sort files by checkpoint
+    ] 
     vis.add_obj([f"out/1_preprocessed/{shape}.obj"] + mesh_files)
     
     # add more
     # vis.add_obj(["out/shape_completion/shape_completion.obj"], with_time=False)
+    
+    # vis.add_obj([
+    #             "out/1_preprocessed/bunny.obj",
+    #             "out/1_preprocessed/bunny2.obj",
+    #             "out/1_preprocessed/bunny3.obj",
+    #             "out/1_preprocessed/bunny4.obj",
+    #             "out/1_preprocessed/bunny5.obj",
+    #              ], with_time=False)
 
     # show 3D window
     vis.view()
