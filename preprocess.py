@@ -29,7 +29,7 @@ def parse_args():
     parser.add_argument(
         "--samples_in_cube",
         type=int,
-        default=2500,
+        default=5000,
         help="Number of samples in the cube",
     )
     return parser.parse_args()
@@ -45,10 +45,9 @@ def generate_samples(mesh_file: str, samples_in_bbox: int, samples_on_surface: i
     mesh = trimesh.load_mesh(mesh_file)
     assert mesh.vertices.shape[1] == 3, f"Vertices of {mesh_file} are not 3D"
 
-    # normalize to [-1, 1] with a margin of 3% and center mesh
-    mesh.apply_scale(2 / (np.max(mesh.extents)*1.03))
-    mesh.apply_translation(-mesh.centroid)
-    
+    # normalize to [-1, 1] with 3% margin
+    mesh.apply_scale(2 / ((mesh.bounds[1]-mesh.bounds[0]).max() * 1.03))
+    mesh.apply_translation(-(mesh.bounds[1] + mesh.bounds[0]) / 2)    
     # save normalized mesh
     mesh.export(join(args.output_dir, basename(mesh_file)))
 

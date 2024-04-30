@@ -16,7 +16,7 @@ class DeepSDF_Dataset(Dataset):
         """
         self.input_dir = "out/1_preprocessed"
         self.nr_rand_samples = nr_rand_samples
-        input_files = glob(os.path.join(self.input_dir, "*.npz"))
+        input_files = sorted(glob(os.path.join(self.input_dir, "*.npz")))
         self.data = []
         self.sdfs = []
         print("Loading data from directory:", self.input_dir)

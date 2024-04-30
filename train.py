@@ -21,7 +21,7 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--device", type=str, default="cpu", help="device to train on")
     parser.add_argument(
-        "--batch-size", type=int, default=3, help="batch size for training"
+        "--batch-size", type=int, default=5, help="batch size for training"
     )
     parser.add_argument("--num-workers", type=int, default=4, help="number of workers")
     parser.add_argument("--lr_model", type=float, default=0.0001, help="learning rate")
@@ -29,7 +29,7 @@ def parse_args():
         "--lr_latent", type=float, default=0.001, help="learning rate for latent vector"
     )
     parser.add_argument(
-        "--epochs", type=int, default=150, help="number of epochs to train"
+        "--epochs", type=int, default=1500, help="number of epochs to train"
     )
     parser.add_argument(
         "--delta", type=float, default=0.1, help="delta for clamping loss function"
@@ -103,8 +103,8 @@ def train(
 
         epoch_losses.append(np.mean(losses))
 
-        # save model every 50 epochs
-        if (epoch + 1) % 50 == 0:
+        # save model every 100 epochs
+        if (epoch + 1) % 100 == 0:
             torch.save(
                 model.state_dict(),
                 os.path.join(weights_dir, f"model_{epoch+1}.pth"),

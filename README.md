@@ -36,7 +36,7 @@ python preprocess .py
 
 You can train the SDF model with:
 ``` bash
-python train.py
+python train.py --device cuda
 ```
 | Argument        | Description                                       | Default Value                     |
 |-----------------|---------------------------------------------------|-----------------------------------|
@@ -56,7 +56,7 @@ python train.py
 
 And reconstruct the meshes with the trained latent vectors:
 ``` bash
-python predict.py
+python predict.py --device cuda
 ```
 | Argument                | Description                                  | Default Value              |
 |-------------------------|----------------------------------------------|----------------------------|

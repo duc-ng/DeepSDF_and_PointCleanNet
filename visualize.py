@@ -15,7 +15,7 @@ class Visualizer:
         os.makedirs(self.out_dir, exist_ok=True)
 
     def on_init(self, vis):
-        vis.show_axes = False
+        vis.show_axes = True
 
     def take_screenshot(self, vis):
         out_file = os.path.join(self.out_dir, f"{len(os.listdir(self.out_dir))}.png")
@@ -52,7 +52,7 @@ class Visualizer:
             ["SDF: Outside", "SDF: Inside", "SDF: Boundary"],
         )
 
-    def add_obj(self, mesh_files, with_time=True):
+    def add_obj(self, mesh_files, with_time=False):
         color = np.random.rand(3)
         for i, mesh_file in enumerate(mesh_files):
             mesh = o3d.io.read_triangle_mesh(mesh_file)
@@ -73,22 +73,23 @@ if __name__ == "__main__":
     # init visualizer
     np.random.seed(43)
     vis = Visualizer()
-    shape = "bunny"
+    shape = "bunny5"
 
     # add SDF
     vis.add_sdf(f"out/1_preprocessed/{shape}.npz")
 
+    # add fist mesh
+    vis.add_obj([f"out/1_preprocessed/{shape}.obj"])
+
     # add reconstructions
     mesh_files = sorted(glob(f"out/2_reconstructed/{shape}/*.obj"))
     checkpoints = [int(os.path.basename(f).split(".")[0]) for f in mesh_files]
-    mesh_files = [
-        f for _, f in sorted(zip(checkpoints, mesh_files))
-    ] 
-    vis.add_obj([f"out/1_preprocessed/{shape}.obj"] + mesh_files)
-    
+    mesh_files = [f for _, f in sorted(zip(checkpoints, mesh_files))]
+    vis.add_obj(mesh_files, with_time=True)
+
     # add more
     # vis.add_obj(["out/shape_completion/shape_completion.obj"], with_time=False)
-    
+
     # vis.add_obj([
     #             "out/1_preprocessed/bunny.obj",
     #             "out/1_preprocessed/bunny2.obj",

@@ -67,17 +67,12 @@ def save_reconstructions(model, batch_size, device, N, latent_inference, output_
     verts = verts * (grid_max - grid_min) / (N - 1) + grid_min
 
     # save as .obj and .xyz
-    out_file_obj = output_file + ".obj"
-    out_file_xyz = output_file + ".xyz"
-    with open(out_file_obj, "w") as f:
+    with open(output_file, "w") as f:
         for v in verts:
             f.write(f"v {v[0]} {v[1]} {v[2]}\n")
         for face in faces:
             f.write(f"f {face[0]+1} {face[1]+1} {face[2]+1}\n")
-    with open(out_file_xyz, "w") as f:
-        for v in verts:
-            f.write(f"{v[0]} {v[1]} {v[2]}\n")
-    print(f"Reconstructed mesh saved in: {out_file_obj}")
+    print(f"Reconstructed mesh saved in: {output_file}")
 
 
 if __name__ == "__main__":
@@ -92,7 +87,7 @@ if __name__ == "__main__":
     print(f"Using device: {device}")
 
     # get filenames
-    input_files = glob(os.path.join(args.input_dir, "*.npz"))
+    input_files = sorted(glob(os.path.join(args.input_dir, "*.npz")))
     basenames = [os.path.basename(f).split(".")[0] for f in input_files]
     weight_files = sorted(glob(os.path.join("out/weights", "*.pth")))
 
@@ -116,7 +111,7 @@ if __name__ == "__main__":
 
             # get checkpoint number
             checkpoint = os.path.basename(weight_file).split(".")[0].split("_")[-1]
-            output_file = os.path.join(output_dir, checkpoint)
+            output_file = os.path.join(output_dir, checkpoint + ".obj")
 
             # save reconstructed coordinates
             model.eval()
