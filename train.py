@@ -29,7 +29,7 @@ def parse_args():
         "--lr_latent", type=float, default=0.001, help="learning rate for latent vector"
     )
     parser.add_argument(
-        "--epochs", type=int, default=1500, help="number of epochs to train"
+        "--epochs", type=int, default=2000, help="number of epochs to train"
     )
     parser.add_argument(
         "--delta", type=float, default=0.1, help="delta for clamping loss function"

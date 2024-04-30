@@ -26,7 +26,7 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--device", type=str, default="cpu", help="device to train on")
     parser.add_argument("--num-workers", type=int, default=4, help="number of workers")
-    parser.add_argument("--N", type=int, default=150, help="meshgrid size")
+    parser.add_argument("--N", type=int, default=192, help="meshgrid size")
     parser.add_argument("--latent_size", type=int, default=128, help="latent size")
     parser.add_argument(
         "--batch_size_reconstruct", type=int, default=100000, help="batch size"
@@ -106,7 +106,7 @@ if __name__ == "__main__":
         for weight_file in weight_files:
 
             # get model and latent vector
-            model.load_state_dict(torch.load(weight_file))
+            model.load_state_dict(torch.load(weight_file, map_location=device))
             latent_inference = latent[i].unsqueeze(0)
 
             # get checkpoint number
