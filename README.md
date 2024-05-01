@@ -22,7 +22,7 @@ cd pointcleannet/models && python download_models.py --task denoising && python 
 
 Start with preprocessing your `.obj` data files by running:
 ``` bash
-python preprocess .py
+python preprocess.py
 ```
 | Argument               | Description                                      | Default Value         |
 |------------------------|--------------------------------------------------|-----------------------|
@@ -73,10 +73,9 @@ python predict.py --device cuda
 
 Or complete a partial mesh by inferring the input latent vectors:
 ``` bash
-python complete_shape.py
+python complete_shape.py --device cuda
 ```
 
-python predict.py --device cuda
 | Argument                | Description                                  | Default Value              |
 |-------------------------|----------------------------------------------|----------------------------|
 | `--weights_dir`         | Model weights directory                      | `out/weights`              |
