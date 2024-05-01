@@ -91,12 +91,7 @@ python complete_shape.py --device cuda
 | `--latent_std`         | Latent standard deviation                | `0.01`                      |
 | `--nr_rand_samples`           | Number of random subsamples from each batch    | `10000`       |
 
-And visualize the results with `visualize.py`. Modifications inside the source file may be necessary.
-``` bash
-python visualize.py
-```
-
-Additionally, code for generating plots and evaluations can be found in `eval.py`.
+And visualize the results with `visualize.py`. Modifications inside the source file may be necessary. Additionally, code for generating plots and evaluations can be found in `eval.py`.
 
 
 ## Output
