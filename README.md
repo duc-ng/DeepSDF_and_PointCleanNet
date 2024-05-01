@@ -1,6 +1,6 @@
 # DeepSDF and PointCleanNet
 
-![My Picture](/report/noise_header.png)
+![My Picture](/report/header.png)
 
 This project constitutes Coursework 3 within the curriculum of COMP0119 - Acquisition and Processing of 3D Geometry (UCL). We have reconstructed the network presented in [DeepSDF](https://arxiv.org/abs/1901.05103), and have trained it on different meshes belonging to a `bunny` class. We have further expanded upon this by integrating [PointCleanNet](https://geometry.cs.ucl.ac.uk/projects/2019/pointcleannet/) into our methodology for mesh reconstruction. Comprehensive details can be found in the submitted reports.
 
