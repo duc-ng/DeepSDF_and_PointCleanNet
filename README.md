@@ -30,7 +30,7 @@ python preprocess .py
 | `--output_dir`         | Directory where the output `.npz` files will be saved | `out/1_preprocessed` |
 | `--samples_on_surface` | Number of samples to take directly on the surface of the mesh | `10000`              |
 | `--samples_in_bbox`    | Number of samples to take within the bounding box of the mesh | `10000`              |
-| `--samples_in_cube`    | Number of samples to take within the unit cube | `2500`                  |
+| `--samples_in_cube`    | Number of samples to take within the unit cube | `5000`                  |
 
 
 
