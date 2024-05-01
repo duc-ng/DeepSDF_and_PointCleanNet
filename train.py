@@ -21,7 +21,7 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--device", type=str, default="cpu", help="device to train on")
     parser.add_argument(
-        "--batch-size", type=int, default=5, help="batch size for training"
+        "--batch_size", type=int, default=5, help="batch size for training"
     )
     parser.add_argument("--num-workers", type=int, default=4, help="number of workers")
     parser.add_argument("--lr_model", type=float, default=0.0001, help="learning rate")
@@ -127,12 +127,11 @@ def loss_function(y_pred, y_true, delta, latent, latent_std):
     return l1 + l2
 
 
-def save_plot_losses(losses):
+def save_plot_losses(losses, out_dir="out/losses"):
     """
     Plot the losses.
     """
     # set output directory
-    out_dir = "out/losses"
     os.makedirs(out_dir, exist_ok=True)
 
     # configure plot

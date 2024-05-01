@@ -38,14 +38,15 @@ class DeepSDF_Dataset(Dataset):
 class SingleShape_Dataset(Dataset):
     """
     This class creates a dataset with only one shape.
-    Returns the vertices and sdf value = 0.
+    Returns the vertices and sdf value 
     """
-    def __init__(self, vertices):
+    def __init__(self, vertices, sdfs):
         self.data = vertices
+        self.sdfs = sdfs
         self.data = torch.from_numpy(self.data).float()
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, index):
-        return self.data[index], 0
+        return self.data[index], self.sdfs[index]

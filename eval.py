@@ -110,11 +110,44 @@ def plot_sdf(directory):
     plt.subplots_adjust(bottom=0.1)
     plt.savefig('report/sdf.png', dpi=150)
 
+def plot_noise(directory):
+    """
+    Plot the 3x3 images in a grid.
+    """
+    image_files = [os.path.join(directory, str(f)+".png") for f in range(9)]
+    
+    # Labels 
+    _, axes = plt.subplots(nrows=3, ncols=3, figsize=(15, 14), dpi=100)
+    column_labels = ["Original", "Input PCD", "Reconstruction"] 
+    row_labels = ["No Noise", "Noise 0.03", "Noise 0.05 and PCNet"]
+    
+    # Plot each image
+    for ax, image_path in zip(axes.flat, image_files):
+        img = Image.open(image_path)
+        ax.imshow(img)
+        ax.set_xticks([])  
+        ax.set_yticks([]) 
+        for spine in ax.spines.values():  
+            spine.set_visible(False)
+        
+    # Set column labels
+    for ax, col_label in zip(axes[-1], column_labels):
+        ax.set_xlabel(col_label, fontdict={'fontsize': 12})
+        
+    # row labels
+    for ax, row_label in zip(axes[:, 0], row_labels):
+        ax.annotate(row_label, xy=(-0.1, 0.5), xycoords="axes fraction", 
+                    textcoords="offset points", va="center", ha="right", fontsize=12)
+
+    # Overall title and layout adjustment
+    plt.tight_layout(pad=0.1)
+    plt.subplots_adjust(left=0.17)
+    plt.savefig('report/noise.png', dpi=150)
+
 
 ########################################## init ############################################################
 device = torch.device("mps")
 nr_chamfer_samples = 30000
-mesh_directory = "out/1_preprocessed"
 batch_size = 5
 epochs = 2000
 weights = f"weights/model_{epochs}.pth"
@@ -126,21 +159,30 @@ latent_file = "weights/latent.pt"
 
 if __name__ == "__main__":
     
-    # load meshes 
-    mesh_files = glob(os.path.join(mesh_directory, "*.obj"))
+    # compute Chamfer Distance (Reconstruction)
+    mesh_files = glob(os.path.join("out/1_preprocessed", "*.obj"))
     basenames = [os.path.basename(f).split(".")[0] for f in mesh_files]
     meshes = [trimesh.load(f) for f in mesh_files]
     meshes_reconstructed = [trimesh.load(f"out/2_reconstructed/{b}/{epochs}.obj") for b in basenames]
-    
-    # sample points
     points = [trimesh.sample.sample_surface(m, nr_chamfer_samples)[0] for m in meshes]
     points2 = [trimesh.sample.sample_surface(m, nr_chamfer_samples)[0] for m in meshes_reconstructed]
-
-    # compute the Chamfer Distance
     distances = [chamfer_distance(points[i], points2[i]) for i in range(len(points))]
-    print("Mean Chamfer Distance (original and reconstructed):", np.mean(distances))
+    print("Mean Chamfer Distance (Reconstruction):", np.mean(distances))
+    
+    # compute Chamfer Distance (Shape Completion)
+    mesh_files = sorted(glob(os.path.join("out/shape_completion", "*.obj")))
+    basenames = [int(os.path.basename(f).split(".")[0]) for f in mesh_files]
+    mesh_files = [f for _, f in sorted(zip(basenames, mesh_files))]
+    mesh = trimesh.load("out/1_preprocessed/bunny.obj")
+    meshes_reconstructed = [trimesh.load(mesh_file) for mesh_file in mesh_files]
+    points = trimesh.sample.sample_surface(mesh, nr_chamfer_samples)[0]
+    points2 = [trimesh.sample.sample_surface(m, nr_chamfer_samples)[0] for m in meshes_reconstructed]
+    distances = [chamfer_distance(points, p) for p in points2]
+    distances = [round(d, 4) for d in distances]
+    print("Mean Chamfer Distance (shape completion):", distances)
 
-    # init model and dataset
+
+    # plot confusion matrix
     model = AutoDecoder(latent_size).float().eval().to(device)
     model.load_state_dict(torch.load(weights, map_location=device))
     latent = torch.load(latent_file, map_location=device).weight
@@ -151,8 +193,6 @@ if __name__ == "__main__":
         shuffle=True,
         num_workers=1,
     )
-
-    # plot confusion matrix
     plot_confusion_matrix(train_loader, model, latent)
     
     # plot iterations
@@ -160,6 +200,6 @@ if __name__ == "__main__":
     
     # plot sdf
     plot_sdf("report/sdf")
-        
-
     
+    # plot noise
+    plot_noise("report/noise")

@@ -67,24 +67,16 @@ def remove_outliers_from_info_file(input_dir, mesh_dir):
         info = np.loadtxt(info_file)
         print("Number of vertices in mesh:", mesh.vertices.shape[0])
         print("Number of entries in mask:", info.shape[0])
-        mask = info[:, 3] < 0.5
+        mask = info[:, 3] > 0.5
         new_vertices = mesh.vertices[mask] # remove outliers
-        vertex_mapping = np.cumsum(mask) - 1 # mapping from old to new vertices
-        new_faces = vertex_mapping[mesh.faces]
-        mesh = trimesh.Trimesh(vertices=new_vertices, faces=new_faces)
-        
-        # fill holes and remove degenerate faces
-        mesh.fill_holes()
-        mesh.remove_degenerate_faces()
-        mesh.remove_duplicate_faces()
-        mesh.remove_unreferenced_vertices()
                 
         # save mesh as .obj
+        mesh = trimesh.Trimesh(vertices=new_vertices)
         mesh.export(os.path.join(input_dir, f"{base}.obj"))
         
         # save vertices as .xyz        
         xyz_file = os.path.join(input_dir, f"{base}.xyz")
-        np.savetxt(xyz_file, mesh.vertices, fmt='%.6f', delimiter=' ')            
+        np.savetxt(xyz_file, new_vertices, fmt='%.6f', delimiter=' ')            
         print(f"Removed outliers from {base}.info")
 
 def remove_noise(directory, directory_mesh, nrun):

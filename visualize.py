@@ -27,7 +27,7 @@ class Visualizer:
             mesh_o3d.points = o3d.utility.Vector3dVector(mesh)
             mesh_o3d.paint_uniform_color(np.random.rand(3))
             self.o3d_meshes.append(
-                {"name": f"{names[i]}", "geometry": mesh_o3d, "is_visible": False}
+                {"name": f"{names[i]}", "geometry": mesh_o3d, "is_visible": True}
             )
 
     def view(self):
@@ -56,7 +56,7 @@ class Visualizer:
         for i, mesh_file in enumerate(mesh_files):
             mesh = o3d.io.read_triangle_mesh(mesh_file)
             mesh.paint_uniform_color(color)
-            if i==0:
+            if i == 0:
                 mesh.paint_uniform_color(np.random.rand(3))
             mesh.compute_vertex_normals()
             print(
@@ -64,11 +64,21 @@ class Visualizer:
             )
             if with_time:
                 self.o3d_meshes.append(
-                    {"name": f"mesh {i}", "geometry": mesh, "time": i, "is_visible": False}
+                    {
+                        "name": f"mesh {i}",
+                        "geometry": mesh,
+                        "time": i,
+                        "is_visible": False,
+                    }
                 )
             else:
-                self.o3d_meshes.append({"name": f"mesh {i}", "geometry": mesh, "is_visible": False})
-
+                self.o3d_meshes.append(
+                    {"name": f"mesh {i}", "geometry": mesh, "is_visible": False}
+                )
+                
+    def add_pcd(self, pcd_file):
+        pcd = np.load(pcd_file)
+        self.add_pcds([pcd], ["Partial pcd"])
 
 if __name__ == "__main__":
     # init visualizer
@@ -80,13 +90,21 @@ if __name__ == "__main__":
     vis.add_sdf(f"out/1_preprocessed/{shape}.npz")
 
     # add reconstructions
-    mesh_files = sorted(glob(f"out/2_reconstructed/{shape}/*.obj"))
-    checkpoints = [int(os.path.basename(f).split(".")[0]) for f in mesh_files]
-    mesh_files = [f"out/1_preprocessed/{shape}.obj"] + [f for _, f in sorted(zip(checkpoints, mesh_files))]
-    vis.add_obj(mesh_files, with_time=False)
+    # mesh_files = sorted(glob(f"out/2_reconstructed/{shape}/*.obj"))
+    # checkpoints = [int(os.path.basename(f).split(".")[0]) for f in mesh_files]
+    # mesh_files = [f"out/1_preprocessed/{shape}.obj"] + [f for _, f in sorted(zip(checkpoints, mesh_files))]
+    # vis.add_obj(mesh_files, with_time=False)
 
-    # add more
-    # vis.add_obj(["out/shape_completion/shape_completion.obj"], with_time=False)
+    # add shape completion results
+    shapes = [
+        f"out/1_preprocessed/{shape}.obj",
+        "out/shape_completion/20.obj",
+        "out/shape_completion/40.obj",
+        "out/shape_completion/60.obj",
+        "out/shape_completion/80.obj",
+    ]
+    vis.add_pcd("out/shape_completion/points/points.npy")
+    vis.add_obj(shapes, with_time=False)
 
     # show 3D window
     vis.view()

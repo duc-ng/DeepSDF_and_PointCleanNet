@@ -6,8 +6,9 @@ import torch
 from src.AutoDecoder import AutoDecoder
 from tqdm import tqdm
 from src.dataset import SingleShape_Dataset
-from train import loss_function
+from train import loss_function, save_plot_losses
 from predict import save_reconstructions
+import subprocess
 
 
 def parse_args():
@@ -31,40 +32,64 @@ def parse_args():
         help="output directory",
     )
     parser.add_argument(
-        "--number_of_samples", type=int, default=10000, help="number of samples"
+        "--number_of_samples",
+        type=int,
+        default=20000,
+        help="number of samples on surface",
     )
     parser.add_argument("--latent_size", type=int, default=128, help="latent size")
-    parser.add_argument("--latent_lr", type=float, default=0.01, help="learning rate")
+    parser.add_argument(
+        "--latent_lr", type=float, default=0.00002, help="learning rate"
+    )
     parser.add_argument("--latent_std", type=float, default=0.01, help="latent std")
-    parser.add_argument("--latent_epochs", type=int, default=50, help="latent epochs")
+    parser.add_argument("--latent_epochs", type=int, default=99, help="latent epochs")
     parser.add_argument(
         "--delta", type=float, default=0.1, help="delta for clamping loss function"
     )
-    parser.add_argument("--batch_size", type=int, default=6400, help="batch size")
     parser.add_argument(
-        "--batch_size_reconstruct", type=int, default=100000, help="batch size"
+        "--batch_size", type=int, default=1000, help="batch size for training"
     )
-    parser.add_argument("--N", type=int, default=150, help="meshgrid size")
-    
-    # for PointCleanNet
-    # parser.add_argument(
-    #     "--clean",
-    #     action="store_true",
-    #     help="clean the reconstruction with PointCleanNet",
-    # )
-    # parser.add_argument(
-    #     "--clean_nrun",
-    #     type=int,
-    #     default=2,
-    #     help="Number of runs with PointCleanNet noise removal",
-    # )
+    parser.add_argument(
+        "--batch_size_reconstruct",
+        type=int,
+        default=100000,
+        help="batch size for reconstruction",
+    )
+    parser.add_argument("--N", type=int, default=192, help="meshgrid size")
+    parser.add_argument(
+        "--weight_file", type=str, default="weights/model_1500.pth", help="weight file"
+    )
+    parser.add_argument("--add_noise", action="store_true", help="add noise to the points")
+    parser.add_argument("--noise_std", type=float, default=0.01, help="noise std")
+
+    parser.add_argument(
+        "--clean",
+        action="store_true",
+        help="clean the noise with PointCleanNet",
+    )
+    parser.add_argument(
+        "--clean_nrun",
+        type=int,
+        default=2,
+        help="Number of runs with PointCleanNet noise removal",
+    )
     return parser.parse_args()
 
 
 def estimate_latent(
-    model, dataloader, latent_inference, lr_latent, latent_epochs, delta, latent_std
+    model,
+    dataloader,
+    latent_inference,
+    lr_latent,
+    latent_epochs,
+    delta,
+    latent_std,
+    output_dir,
 ):
     optimizer = torch.optim.Adam([latent_inference.weight], lr=lr_latent)
+    epoch_losses = []
+    latents = []
+    epochs = []
 
     for epoch in range(latent_epochs):
         losses = []
@@ -98,7 +123,16 @@ def estimate_latent(
                 optimizer.step()
                 tepoch.set_postfix(loss=np.mean(losses))
 
-    return latent_inference.weight
+        epoch_losses.append(np.mean(losses))
+
+        # save latent vector
+        if (epoch + 1) % 20 == 0:
+            latents.append(latent_inference.weight.detach().clone())
+            epochs.append(epoch + 1)
+
+    save_plot_losses(epoch_losses, output_dir)
+
+    return latents, epochs
 
 
 if __name__ == "__main__":
@@ -110,31 +144,83 @@ if __name__ == "__main__":
     os.makedirs(args.output_dir, exist_ok=True)
     device = torch.device(args.device)
     mesh = trimesh.load(args.input_mesh)
+    trimesh.repair.fix_winding(mesh)
+    trimesh.repair.fix_inversion(mesh)
+    trimesh.repair.fix_normals(mesh)
 
     # sample points on surface
-    points, _ = trimesh.sample.sample_surface(mesh, args.number_of_samples)
+    samples, faces = trimesh.sample.sample_surface(mesh, args.number_of_samples)
+    normals = mesh.face_normals[faces]
+    delta = 0.01
+    positive_points = samples + delta * normals
+    negative_points = samples - delta * normals
+    points = np.vstack((positive_points, negative_points))
     print(f"Number of sampled points: {len(points)}")
 
-    # remove points smaller than 0 on z-axis
-    points = points[points[:, 2] > 0]
-    print(f"Number of partial points: {len(points)}")
+    # targets is delta for each positive_points
+    targets_pos = delta * np.ones(len(positive_points), dtype=np.float32)
+    targets_neg = -delta * np.ones(len(negative_points), dtype=np.float32)
+    targets = np.hstack((targets_pos, targets_neg))
 
-    # save points
-    mesh = trimesh.Trimesh(vertices=points)
-    mesh.export(os.path.join(args.output_dir, "points.obj"))
+    # remove points smaller than 0 on z-axis
+    mask = points[:, 2] > 0
+    points = points[mask]
+    targets = targets[mask]
+    print(f"Number of partial points: {len(points)}")
+    
+    # add noise
+    if args.add_noise:
+        noise = np.random.normal(0, args.noise_std, points.shape)
+        points += noise
+
+    # save points as .npy, .obj, .xyz
+    points_directory = os.path.join(args.output_dir, "points")
+    os.makedirs(points_directory, exist_ok=True)
+    np.save(os.path.join(points_directory, "points.npy"), points)
+    mesh_out = trimesh.Trimesh(vertices=points)
+    mesh_out.export(os.path.join(points_directory, "points.obj"))
+    with open(os.path.join(points_directory, "points.xyz"), "w") as f:
+        for p in points:
+            f.write(f"{p[0]} {p[1]} {p[2]}\n")
+    
+    # run PointCleanNet and load cleaned points
+    if args.clean:
+        command = [
+            "python",
+            "src/pointcleannet.py",
+            "--input_dir",
+            points_directory,
+            "--outlier_dir",
+            os.path.join(args.output_dir, "pcnet", "outliers"),
+            "--output_dir",
+            os.path.join(args.output_dir, "pcnet", "cleaned_noise"),
+            "--device",
+            str(device),
+            "--seed",
+            str(args.seed),
+            "--nrun",
+            str(args.clean_nrun),
+        ]
+        subprocess.run(command)
+        
+        info = np.loadtxt(os.path.join(args.output_dir, "pcnet", "outliers", "points.info"))
+        targets = targets[info[:, 3] > 0.5] # remove outliers from targets
+        points = np.loadtxt(os.path.join(args.output_dir, "pcnet", "cleaned_noise", f"points_{args.clean_nrun}.xyz"))
 
     # load data and model
-    dataset = SingleShape_Dataset(mesh.vertices)
+    dataset = SingleShape_Dataset(points, targets)
     dataloader = torch.utils.data.DataLoader(
         dataset, batch_size=args.batch_size, shuffle=True
     )
 
     model = AutoDecoder(latent_size=args.latent_size).float().train().to(device)
+    model.load_state_dict(torch.load(args.weight_file, map_location=device))
 
     # estimate latent vectors for inference
     latent_inference = torch.nn.Embedding(1, args.latent_size).to(device)
     torch.nn.init.normal_(latent_inference.weight.data, mean=0.0, std=args.latent_std)
-    latent_inference = estimate_latent(
+
+    latents, epochs = estimate_latent(
         model,
         dataloader,
         latent_inference,
@@ -142,35 +228,15 @@ if __name__ == "__main__":
         args.latent_epochs,
         args.delta,
         args.latent_std,
-    )
-    
-    # reconstruct shape
-    output_file = os.path.join(args.output_dir, "shape_completion")
-    save_reconstructions(
-        model,
-        args.batch_size_reconstruct,
-        device,
-        args.N,
-        latent_inference,
-        output_file
+        args.output_dir,
     )
 
-    # # PointCleanNet
-    # if args.clean:
-    #     command = [
-    #         "python",
-    #         "src/pointcleannet.py",
-    #         "--input_dir",
-    #         args.output_dir,
-    #         "--outlier_dir",
-    #         "out/3_cleaned_outliers",
-    #         "--output_dir",
-    #         "out/4_cleaned_noise",
-    #         "--device",
-    #         str(device),
-    #         "--seed",
-    #         str(args.seed),
-    #         "--nrun",
-    #         str(args.clean_nrun),
-    #     ]
-    #     subprocess.run(command)
+    # reconstruct shape
+    model.eval()
+    for latent, epoch in zip(latents, epochs):
+        output_file = os.path.join(args.output_dir, f"{epoch}.obj")
+        save_reconstructions(
+            model, args.batch_size_reconstruct, device, args.N, latent, output_file
+        )
+
+   

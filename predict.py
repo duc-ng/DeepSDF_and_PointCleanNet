@@ -66,7 +66,7 @@ def save_reconstructions(model, batch_size, device, N, latent_inference, output_
     grid_max = np.max(samples.cpu().numpy(), axis=0)
     verts = verts * (grid_max - grid_min) / (N - 1) + grid_min
 
-    # save as .obj and .xyz
+    # save as .obj 
     with open(output_file, "w") as f:
         for v in verts:
             f.write(f"v {v[0]} {v[1]} {v[2]}\n")
