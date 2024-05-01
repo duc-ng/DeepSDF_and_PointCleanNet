@@ -108,7 +108,7 @@ The output of the processing pipeline is organized into several folders within t
 
 - `2_reconstructed`: Holds the mesh files that have been reconstructed from the SDF samples. 
 
-We also have additional directories.
+Additional directories are:
 
 - `losses`: Contains the training plots of each training section.
 
@@ -117,13 +117,10 @@ We also have additional directories.
 - `shape_completion`: All files generated for inferring shapes from partial pointclouds. Outputs from PointCleanNet are also saved here.
 
 ## Contributing
-The Authors are:
-
-[Duc Thinh Nguyen](https://github.com/duc-ng) (UCL)
-[Harshitha Nagarajan ](https://github.com/HarshithaNagarajan) (UCL)
+The Authors are [Duc Thinh Nguyen](https://github.com/duc-ng) (UCL) and [Harshitha Nagarajan ](https://github.com/HarshithaNagarajan) (UCL).
 
 We would like to thank the following projects and their contributors for making their resources available for public use, which greatly facilitated the development of our project:
 
 - **[DeepSDF](https://github.com/facebookresearch/DeepSDF)**: Original implementation of DeepSDF.
 - **[PointCleanNet](https://github.com/mrakotosaon/pointcleannet)**: Source code integrated into our project.
-- **[Objaverse](https://objaverse.allenai.org/)**: Provided the training data.
+- **[Objaverse](https://objaverse.allenai.org/)**: Provision of the training data.
