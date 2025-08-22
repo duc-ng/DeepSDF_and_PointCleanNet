@@ -113,7 +113,7 @@ Additional directories are:
 - `shape_completion`: All files generated for inferring shapes from partial pointclouds. Outputs from PointCleanNet are also saved here.
 
 ## Contributing
-The Authors are [Duc Thinh Nguyen](https://github.com/duc-ng) (UCL) and [Harshitha Nagarajan ](https://github.com/HarshithaNagarajan) (UCL).
+The Authors are [Duc Nguyen](https://github.com/duc-ng) (UCL) and [Harshitha Nagarajan ](https://github.com/HarshithaNagarajan) (UCL).
 
 We would like to thank the following projects and their contributors for making their resources available for public use, which greatly facilitated the development of our project:
 
